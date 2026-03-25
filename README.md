@@ -66,7 +66,12 @@ JWT + refresh token rotation.
 mvn spring-boot:run
 ```
 
-По умолчанию сервер работает на `https://localhost:8443`.
+По умолчанию сервер работает на `http://localhost:8080` (SSL выключен).
+
+Для запуска с HTTPS:
+
+1. Сгенерировать `src/main/resources/keystore.p12` скриптом `generate-certs.sh`.
+2. Включить переменные `SSL_ENABLED=true`, `SERVER_PORT=8443` и `SSL_KEY_STORE_PASSWORD=<пароль keystore>`.
 
 ## Стартовые пользователи
 
