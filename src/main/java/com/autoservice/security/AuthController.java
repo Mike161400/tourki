@@ -28,13 +28,15 @@ public class AuthController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+
         if (userRepository.existsByUsername(request.getUsername())) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Username already taken");
         }
+
         AppUser user = new AppUser();
         user.setUsername(request.getUsername());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setRole(request.getRole() != null ? request.getRole() : Role.ROLE_CUSTOMER);
+        user.setRole(request.getRole() != null ? request.getRole().normalized() : Role.ROLE_TRAVELER);
         userRepository.save(user);
         return ResponseEntity.status(HttpStatus.CREATED).body("User registered successfully");
     }
@@ -59,3 +61,4 @@ public class AuthController {
         }
     }
 }
+

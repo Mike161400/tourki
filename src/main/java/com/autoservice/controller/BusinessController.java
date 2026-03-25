@@ -1,9 +1,12 @@
 package com.autoservice.controller;
 
-import com.autoservice.dto.MechanicWorkloadDto;
-import com.autoservice.dto.OrderCostDto;
+import com.autoservice.dto.GuideWorkloadDto;
+import com.autoservice.dto.ReviewRequest;
 import com.autoservice.service.BusinessService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,14 +21,10 @@ public class BusinessController {
         this.businessService = businessService;
     }
 
-    /**
-     * Бизнес-операция 1: Автоназначение механика с наименьшей нагрузкой.
-     * POST /api/orders/{id}/auto-assign
-     */
-    @PostMapping("/orders/{id}/auto-assign")
-    public ResponseEntity<?> autoAssign(@PathVariable Long id) {
+    @PostMapping("/tours/{id}/auto-assign-guide")
+    public ResponseEntity<?> autoAssignGuide(@PathVariable Long id) {
         try {
-            return ResponseEntity.ok(businessService.autoAssignMechanic(id));
+            return ResponseEntity.ok(businessService.autoAssignGuide(id));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         } catch (IllegalStateException e) {
@@ -33,15 +32,20 @@ public class BusinessController {
         }
     }
 
-    /**
-     * Бизнес-операция 2: Закрыть заказ-наряд.
-     * Доступно только если все обязательные работы выполнены.
-     * PUT /api/orders/{id}/close
-     */
-    @PutMapping("/orders/{id}/close")
-    public ResponseEntity<?> closeOrder(@PathVariable Long id) {
+    @PostMapping("/tours/{id}/book-seat")
+    public ResponseEntity<?> bookSeat(@PathVariable Long id,
+                                      @RequestParam(required = false) String travelerUsername,
+                                      Authentication authentication) {
         try {
-            return ResponseEntity.ok(businessService.closeOrder(id));
+            String username = authentication.getName();
+            boolean admin = authentication.getAuthorities().stream()
+                    .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+
+            if (admin && travelerUsername != null && !travelerUsername.isBlank()) {
+                username = travelerUsername;
+            }
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(businessService.bookSeat(id, username));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         } catch (IllegalStateException e) {
@@ -49,42 +53,51 @@ public class BusinessController {
         }
     }
 
-    /**
-     * Бизнес-операция 3: Детализация стоимости заказа (работы + детали).
-     * GET /api/orders/{id}/cost
-     */
-    @GetMapping("/orders/{id}/cost")
-    public ResponseEntity<?> getOrderCost(@PathVariable Long id) {
+    @PutMapping("/tours/{id}/complete")
+    public ResponseEntity<?> completeTour(@PathVariable Long id) {
         try {
-            return ResponseEntity.ok(businessService.getOrderCostBreakdown(id));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    /**
-     * Бизнес-операция 4: Нагрузка механиков.
-     * GET /api/reports/mechanics
-     */
-    @GetMapping("/reports/mechanics")
-    public List<MechanicWorkloadDto> getMechanicWorkload() {
-        return businessService.getMechanicWorkload();
-    }
-
-    /**
-     * Бизнес-операция 5: Деактивировать механика и переназначить его заказы.
-     * PUT /api/mechanics/{id}/deactivate?reassignToMechanicId={id}
-     */
-    @PutMapping("/mechanics/{id}/deactivate")
-    public ResponseEntity<?> deactivateMechanic(@PathVariable Long id,
-                                                @RequestParam Long reassignToMechanicId) {
-        try {
-            businessService.deactivateMechanicWithReassignment(id, reassignToMechanicId);
-            return ResponseEntity.ok("Mechanic deactivated and orders reassigned successfully");
+            return ResponseEntity.ok(businessService.completeTour(id));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         } catch (IllegalStateException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+
+    @PostMapping("/tours/{id}/reviews")
+    public ResponseEntity<?> addReview(@PathVariable Long id,
+                                       @Valid @RequestBody ReviewRequest request,
+                                       @RequestParam(required = false) String travelerUsername,
+                                       Authentication authentication) {
+        try {
+            boolean admin = authentication.getAuthorities().stream()
+                    .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+
+            String username = authentication.getName();
+            if (admin && travelerUsername != null && !travelerUsername.isBlank()) {
+                username = travelerUsername;
+            }
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(businessService.addReview(id, username, request));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/tours/{id}/availability")
+    public ResponseEntity<?> getAvailability(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(businessService.getTourAvailability(id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/reports/guides/workload")
+    public List<GuideWorkloadDto> getGuideWorkload() {
+        return businessService.getGuideWorkload();
     }
 }

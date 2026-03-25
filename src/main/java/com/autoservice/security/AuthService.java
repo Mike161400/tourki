@@ -107,7 +107,7 @@ public class AuthService {
     private TokenPairResponse createTokenPair(AppUser user) {
         String jti = UUID.randomUUID().toString();
 
-        String accessToken = jwtTokenProvider.generateAccessToken(user.getUsername(), user.getRole().name());
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getUsername(), user.getRole().normalized().name());
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getUsername(), jti);
 
         UserSession session = new UserSession();
@@ -133,3 +133,4 @@ public class AuthService {
         }
     }
 }
+

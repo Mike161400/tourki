@@ -13,35 +13,35 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
 
-    private final CustomerRepository customerRepository;
-    private final VehicleRepository vehicleRepository;
-    private final MechanicRepository mechanicRepository;
-    private final PartRepository partRepository;
-    private final ServiceOrderRepository serviceOrderRepository;
-    private final OrderItemRepository orderItemRepository;
+    private final DestinationRepository destinationRepository;
+    private final GuideRepository guideRepository;
+    private final TourRepository tourRepository;
+    private final BookingRepository bookingRepository;
+    private final ReviewRepository reviewRepository;
     private final AppUserRepository appUserRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public DataInitializer(CustomerRepository customerRepository,
-                           VehicleRepository vehicleRepository,
-                           MechanicRepository mechanicRepository,
-                           PartRepository partRepository,
-                           ServiceOrderRepository serviceOrderRepository,
-                           OrderItemRepository orderItemRepository,
+    public DataInitializer(DestinationRepository destinationRepository,
+                           GuideRepository guideRepository,
+                           TourRepository tourRepository,
+                           BookingRepository bookingRepository,
+                           ReviewRepository reviewRepository,
                            AppUserRepository appUserRepository,
                            PasswordEncoder passwordEncoder) {
-        this.customerRepository = customerRepository;
-        this.vehicleRepository = vehicleRepository;
-        this.mechanicRepository = mechanicRepository;
-        this.partRepository = partRepository;
-        this.serviceOrderRepository = serviceOrderRepository;
-        this.orderItemRepository = orderItemRepository;
+        this.destinationRepository = destinationRepository;
+        this.guideRepository = guideRepository;
+        this.tourRepository = tourRepository;
+        this.bookingRepository = bookingRepository;
+        this.reviewRepository = reviewRepository;
         this.appUserRepository = appUserRepository;
         this.passwordEncoder = passwordEncoder;
     }
@@ -49,103 +49,96 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        if (customerRepository.count() > 0) {
-            log.info("Database already seeded, skipping initialization.");
+        createUserIfAbsent("admin", "Admin1234!", Role.ROLE_ADMIN);
+        createUserIfAbsent("guide1", "Guide1234!", Role.ROLE_GUIDE);
+        createUserIfAbsent("guide2", "Guide2234!", Role.ROLE_GUIDE);
+        createUserIfAbsent("traveler1", "Traveler1234!", Role.ROLE_TRAVELER);
+        createUserIfAbsent("traveler2", "Traveler2234!", Role.ROLE_TRAVELER);
+
+        if (tourRepository.count() > 0) {
+            log.info("Travel data already seeded, skipping domain initialization.");
             return;
         }
 
-        log.info("Seeding database with initial auto service data...");
+        log.info("Seeding database with initial travel data...");
 
-        // --- Системные пользователи ---
-        createUserIfAbsent("admin", "Admin1234!", Role.ROLE_ADMIN);
-        createUserIfAbsent("mechanic1", "Mech1234!", Role.ROLE_MECHANIC);
-        createUserIfAbsent("customer1", "Cust1234!", Role.ROLE_CUSTOMER);
+        Destination baikal = createDestination("Lake Baikal", "Russia", "Irkutsk", "Ice trek and Siberian nature.");
+        Destination elbrus = createDestination("Elbrus", "Russia", "Kabardino-Balkaria", "Mountain climbing and alpine trails.");
+        Destination dagestan = createDestination("Dagestan Canyons", "Russia", "Makhachkala", "Canyon routes and ethnic villages.");
+        Destination altai = createDestination("Altai", "Russia", "Gorno-Altaysk", "Trekking, rivers, and mountain lakes.");
+        Destination karelia = createDestination("Karelia", "Russia", "Petrozavodsk", "Kayaks, forests, and northern architecture.");
 
-        // --- Клиенты ---
-        Customer ivanov = new Customer();
-        ivanov.setName("Иванов Иван Иванович");
-        ivanov.setPhone("+7-900-100-0001");
-        ivanov.setEmail("ivanov@example.com");
-        ivanov = customerRepository.save(ivanov);
+        Guide guideA = createGuide("Olga Petrova", "olga.petrova@travel.local", "RU,EN", 6, true);
+        Guide guideB = createGuide("Nikolay Sidorov", "n.sidorov@travel.local", "RU,EN,DE", 9, true);
+        Guide guideC = createGuide("Maksim Ivanov", "m.ivanov@travel.local", "RU", 4, true);
 
-        Customer petrov = new Customer();
-        petrov.setName("Петров Пётр Петрович");
-        petrov.setPhone("+7-900-100-0002");
-        petrov.setEmail("petrov@example.com");
-        petrov = customerRepository.save(petrov);
+        LocalDate today = LocalDate.now();
 
-        Customer sidorova = new Customer();
-        sidorova.setName("Сидорова Анна Сергеевна");
-        sidorova.setPhone("+7-900-100-0003");
-        sidorova.setEmail("sidorova@example.com");
-        sidorova = customerRepository.save(sidorova);
+        Tour completedTour = createTour(
+                "Winter Baikal Expedition",
+                "Seven-day route across frozen lake and coastal villages.",
+                today.minusDays(12),
+                today.minusDays(5),
+                12,
+                new BigDecimal("89000.00"),
+                TourStatus.COMPLETED,
+                guideA,
+                List.of(baikal)
+        );
 
-        // --- Автомобили ---
-        Vehicle camry = createVehicle(ivanov, "Toyota", "Camry", 2020, "А001АА77", "JT2BF22K1W0066252");
-        Vehicle bmwX5 = createVehicle(ivanov, "BMW", "X5", 2019, "В002ВВ77", "WBAFR9C50BC784875");
-        Vehicle vesta = createVehicle(petrov, "Lada", "Vesta", 2022, "С003СС77", "XTA21129063012345");
-        Vehicle focus = createVehicle(petrov, "Ford", "Focus", 2018, "Д004ДД77", "1FAFP31N47W259368");
-        Vehicle solaris = createVehicle(sidorova, "Hyundai", "Solaris", 2021, "Е005ЕЕ77", "Z94CB41CAMR456789");
+        Tour openTour = createTour(
+                "Spring Altai Trek",
+                "Hiking route with camp nights and glacier viewpoints.",
+                today.plusDays(20),
+                today.plusDays(28),
+                10,
+                new BigDecimal("76000.00"),
+                TourStatus.OPEN_FOR_BOOKING,
+                guideB,
+                List.of(altai)
+        );
 
-        // --- Механики ---
-        Mechanic smirnov = createMechanic("Алексей Смирнов", "Двигатель", true);
-        Mechanic kozlov = createMechanic("Дмитрий Козлов", "Ходовая часть", true);
-        Mechanic novikova = createMechanic("Ольга Новикова", "Электрика", true);
+        Tour inProgressTour = createTour(
+                "Dagestan Canyon Discovery",
+                "Regional culture, canyon viewpoints, and jeep transfer.",
+                today.minusDays(1),
+                today.plusDays(4),
+                14,
+                new BigDecimal("54000.00"),
+                TourStatus.IN_PROGRESS,
+                guideC,
+                List.of(dagestan)
+        );
 
-        // --- Запчасти ---
-        Part oilFilter = createPart("Масляный фильтр", "OIL-FLT-001", new BigDecimal("350.00"), 50);
-        Part airFilter = createPart("Воздушный фильтр", "AIR-FLT-001", new BigDecimal("450.00"), 40);
-        Part sparkPlug = createPart("Свеча зажигания", "SPK-PLG-001", new BigDecimal("280.00"), 100);
-        Part brakePadsFront = createPart("Тормозные колодки передние", "BRK-PAD-F01", new BigDecimal("1800.00"), 25);
-        Part brakeDiscs = createPart("Тормозные диски", "BRK-DSC-001", new BigDecimal("3500.00"), 15);
-        Part engineOil = createPart("Моторное масло 5W-40 (4л)", "OIL-ENG-5W40", new BigDecimal("2200.00"), 30);
-        Part antifreeze = createPart("Антифриз (1л)", "COOL-ANT-001", new BigDecimal("350.00"), 45);
-        Part timingBelt = createPart("Ремень ГРМ", "TIM-BLT-001", new BigDecimal("2800.00"), 20);
+        Tour soldOutTour = createTour(
+                "Elbrus Base Camp",
+                "Acclimatization route with technical mountain training.",
+                today.plusDays(35),
+                today.plusDays(44),
+                2,
+                new BigDecimal("99000.00"),
+                TourStatus.OPEN_FOR_BOOKING,
+                guideB,
+                List.of(elbrus, karelia)
+        );
 
-        // --- Заказ-наряды ---
+        createBooking(completedTour, "traveler1", BookingStatus.CONFIRMED, LocalDateTime.now().minusDays(20), null);
+        createBooking(completedTour, "traveler2", BookingStatus.CONFIRMED, LocalDateTime.now().minusDays(19), null);
 
-        // Заказ 1: Toyota Camry — замена масла (статус: COMPLETED)
-        ServiceOrder order1 = createOrder(camry, smirnov, OrderStatus.IN_PROGRESS,
-                "Плановое ТО: замена масла и фильтров");
-        addItem(order1, ItemType.WORK, "Замена моторного масла", null, 1, new BigDecimal("800.00"), true, true);
-        addItem(order1, ItemType.PART, "Моторное масло 5W-40", engineOil, 1, new BigDecimal("2200.00"), true, true);
-        addItem(order1, ItemType.PART, "Масляный фильтр", oilFilter, 1, new BigDecimal("350.00"), true, true);
-        addItem(order1, ItemType.PART, "Воздушный фильтр", airFilter, 1, new BigDecimal("450.00"), false, false);
-        recalcOrder(order1);
+        createBooking(openTour, "traveler1", BookingStatus.CONFIRMED, LocalDateTime.now().minusDays(1), null);
+        createBooking(openTour, "traveler2", BookingStatus.CANCELLED, LocalDateTime.now().minusDays(2), LocalDateTime.now().minusDays(1));
 
-        // Заказ 2: BMW X5 — замена тормозных колодок (статус: OPEN)
-        ServiceOrder order2 = createOrder(bmwX5, null, OrderStatus.OPEN,
-                "Жалобы на скрип тормозов. Диагностика и замена тормозных колодок");
-        addItem(order2, ItemType.WORK, "Диагностика тормозной системы", null, 1, new BigDecimal("500.00"), true, false);
-        addItem(order2, ItemType.WORK, "Замена передних тормозных колодок", null, 1, new BigDecimal("1200.00"), true, false);
-        addItem(order2, ItemType.PART, "Тормозные колодки передние", brakePadsFront, 2, new BigDecimal("1800.00"), true, false);
-        recalcOrder(order2);
+        createBooking(soldOutTour, "traveler1", BookingStatus.CONFIRMED, LocalDateTime.now().minusHours(12), null);
+        createBooking(soldOutTour, "traveler2", BookingStatus.CONFIRMED, LocalDateTime.now().minusHours(10), null);
 
-        // Заказ 3: Lada Vesta — замена свечей зажигания (статус: COMPLETED)
-        ServiceOrder order3 = createOrder(vesta, kozlov, OrderStatus.COMPLETED,
-                "Плановая замена свечей зажигания");
-        addItem(order3, ItemType.WORK, "Замена свечей зажигания", null, 1, new BigDecimal("600.00"), true, true);
-        addItem(order3, ItemType.PART, "Свеча зажигания", sparkPlug, 4, new BigDecimal("280.00"), true, true);
-        recalcOrder(order3);
+        createReview(completedTour, "traveler1", 5, "Excellent logistics and guide support.");
 
-        // Заказ 4: Ford Focus — замена ремня ГРМ (статус: IN_PROGRESS)
-        ServiceOrder order4 = createOrder(focus, smirnov, OrderStatus.IN_PROGRESS,
-                "Замена ремня ГРМ по регламенту (90 000 км)");
-        addItem(order4, ItemType.WORK, "Замена ремня ГРМ", null, 1, new BigDecimal("3500.00"), true, false);
-        addItem(order4, ItemType.PART, "Ремень ГРМ", timingBelt, 1, new BigDecimal("2800.00"), true, false);
-        addItem(order4, ItemType.WORK, "Проверка натяжителя", null, 1, new BigDecimal("300.00"), false, false);
-        recalcOrder(order4);
-
-        // Заказ 5: Hyundai Solaris — замена антифриза (статус: CANCELLED)
-        ServiceOrder order5 = createOrder(solaris, novikova, OrderStatus.CANCELLED,
-                "Замена антифриза — отменён клиентом");
-        addItem(order5, ItemType.WORK, "Замена антифриза", null, 1, new BigDecimal("700.00"), true, false);
-        addItem(order5, ItemType.PART, "Антифриз", antifreeze, 2, new BigDecimal("350.00"), true, false);
-        recalcOrder(order5);
-
-        log.info("Database seeded: {} customers, {} vehicles, {} mechanics, {} parts, {} orders.",
-                customerRepository.count(), vehicleRepository.count(),
-                mechanicRepository.count(), partRepository.count(), serviceOrderRepository.count());
+        log.info("Seed complete: {} destinations, {} guides, {} tours, {} bookings, {} reviews.",
+                destinationRepository.count(),
+                guideRepository.count(),
+                tourRepository.count(),
+                bookingRepository.count(),
+                reviewRepository.count());
     }
 
     private void createUserIfAbsent(String username, String rawPassword, Role role) {
@@ -158,66 +151,67 @@ public class DataInitializer implements CommandLineRunner {
         }
     }
 
-    private Vehicle createVehicle(Customer customer, String make, String model, int year,
-                                   String licensePlate, String vin) {
-        Vehicle v = new Vehicle();
-        v.setCustomer(customer);
-        v.setMake(make);
-        v.setModel(model);
-        v.setYear(year);
-        v.setLicensePlate(licensePlate);
-        v.setVin(vin);
-        return vehicleRepository.save(v);
+    private Destination createDestination(String name, String country, String city, String description) {
+        Destination destination = new Destination();
+        destination.setName(name);
+        destination.setCountry(country);
+        destination.setCity(city);
+        destination.setDescription(description);
+        return destinationRepository.save(destination);
     }
 
-    private Mechanic createMechanic(String name, String specialization, boolean active) {
-        Mechanic m = new Mechanic();
-        m.setName(name);
-        m.setSpecialization(specialization);
-        m.setActive(active);
-        return mechanicRepository.save(m);
+    private Guide createGuide(String fullName, String email, String languages, int experienceYears, boolean active) {
+        Guide guide = new Guide();
+        guide.setFullName(fullName);
+        guide.setEmail(email);
+        guide.setLanguages(languages);
+        guide.setExperienceYears(experienceYears);
+        guide.setActive(active);
+        return guideRepository.save(guide);
     }
 
-    private Part createPart(String name, String partNumber, BigDecimal price, int stock) {
-        Part p = new Part();
-        p.setName(name);
-        p.setPartNumber(partNumber);
-        p.setPrice(price);
-        p.setStockQuantity(stock);
-        return partRepository.save(p);
+    private Tour createTour(String title,
+                            String description,
+                            LocalDate startDate,
+                            LocalDate endDate,
+                            int maxSeats,
+                            BigDecimal price,
+                            TourStatus status,
+                            Guide guide,
+                            List<Destination> destinations) {
+        Tour tour = new Tour();
+        tour.setTitle(title);
+        tour.setDescription(description);
+        tour.setStartDate(startDate);
+        tour.setEndDate(endDate);
+        tour.setMaxSeats(maxSeats);
+        tour.setPrice(price);
+        tour.setStatus(status);
+        tour.setGuide(guide);
+        tour.setDestinations(destinations);
+        return tourRepository.save(tour);
     }
 
-    private ServiceOrder createOrder(Vehicle vehicle, Mechanic mechanic, OrderStatus status,
-                                      String description) {
-        ServiceOrder order = new ServiceOrder();
-        order.setVehicle(vehicle);
-        order.setMechanic(mechanic);
-        order.setStatus(status);
-        order.setDescription(description);
-        return serviceOrderRepository.save(order);
+    private Booking createBooking(Tour tour,
+                                  String travelerUsername,
+                                  BookingStatus status,
+                                  LocalDateTime bookedAt,
+                                  LocalDateTime cancelledAt) {
+        Booking booking = new Booking();
+        booking.setTour(tour);
+        booking.setTravelerUsername(travelerUsername);
+        booking.setStatus(status);
+        booking.setBookedAt(bookedAt);
+        booking.setCancelledAt(cancelledAt);
+        return bookingRepository.save(booking);
     }
 
-    private void addItem(ServiceOrder order, ItemType type, String description,
-                          Part part, int quantity, BigDecimal unitPrice,
-                          boolean mandatory, boolean completed) {
-        OrderItem item = new OrderItem();
-        item.setServiceOrder(order);
-        item.setType(type);
-        item.setDescription(description);
-        item.setPart(part);
-        item.setQuantity(quantity);
-        item.setUnitPrice(unitPrice);
-        item.setMandatory(mandatory);
-        item.setCompleted(completed);
-        orderItemRepository.save(item);
-    }
-
-    private void recalcOrder(ServiceOrder order) {
-        java.math.BigDecimal total = orderItemRepository.findByServiceOrderId(order.getId())
-                .stream()
-                .map(i -> i.getUnitPrice().multiply(java.math.BigDecimal.valueOf(i.getQuantity())))
-                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
-        order.setTotalCost(total);
-        serviceOrderRepository.save(order);
+    private Review createReview(Tour tour, String travelerUsername, int rating, String comment) {
+        Review review = new Review();
+        review.setTour(tour);
+        review.setTravelerUsername(travelerUsername);
+        review.setRating(rating);
+        review.setComment(comment);
+        return reviewRepository.save(review);
     }
 }
